@@ -542,10 +542,21 @@ internal class ZoomPanRotateState(
         }
 
         layoutSize = size
-        if (newScrollX != null && newScrollY != null) {
-            setScroll(newScrollX, newScrollY)
+
+        val newScale = getNewScale()
+
+        if(newScale > scale){
+            recalculateMinScale()
+            if (newScrollX != null && newScrollY != null) {
+                setScroll(newScrollX-newScrollY, newScrollY-newScrollX)
+            }
+        } else {
+            if (newScrollX != null && newScrollY != null) {
+                setScroll(newScrollX, newScrollY)
+            }
+            recalculateMinScale()
         }
-        recalculateMinScale()
+
 
         /* Layout was done at least once, resume continuations */
         for (ct in onLayoutContinuations) {
@@ -602,6 +613,22 @@ internal class ZoomPanRotateState(
 
         centroidX = (scrollX + pivotX) / (fullWidth * scale)
         centroidY = (scrollY + pivotY) / (fullHeight * scale)
+    }
+
+    private fun getNewScale() : Float{
+        val minScaleX = layoutSize.width.toFloat() / fullWidth
+        val minScaleY = layoutSize.height.toFloat() / fullHeight
+        val mode = minimumScaleMode
+
+        val newMinScale = when (mode) {
+            Fit -> min(minScaleX, minScaleY)
+            Fill -> max(minScaleX, minScaleY)
+            is Forced -> mode.scale
+        }
+
+        val newScale = scale.coerceIn(max(newMinScale, Float.MIN_VALUE), maxScale.coerceAtLeast(newMinScale))
+
+        return newScale
     }
 
     private fun recalculateMinScale() {
